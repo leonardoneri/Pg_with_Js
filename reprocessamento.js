@@ -2,37 +2,20 @@ const { Client } = require('pg')
 
 const client = new Client({
   user: "postgres",
-  password: "1234",
+  password: "123",
   host: "localhost",
   port: 5432,
   database: "stone"
 })
 
-
 var string = "SELECT \
 ton_users.id, \
-ton_users.name, \
-ton_transactions.status \
+ton_users.email \
 FROM ton_users \
 INNER JOIN ton_transactions \
 ON ton_users.id = ton_transactions.user_id \
 WHERE ton_transactions.status = 'PROCESSING';"
 
-
-const connect = (client, string) =>{
-
-  client.connect().then(console.log("Connected successfuly"))
-
-  client.query(string, (err, res) => {
-    if (err) {
-        console.log(err.stack)
-    } else {
-        console.log(res.rows)
-    }
-
-  })
-
-}
 
 const fixTransactions = (userIds) => {
     console.log('Corrigindo transações dos usuários enviados')
@@ -43,18 +26,23 @@ const sendEmails = (userEmails) => {
 
 }
 
-const main = async () => {
-  await fixTransactions() 
-  await sendEmails()
+const main = async (rows) => {
+  let userIds = []
+  let userEmails = []
+
+  for (let i of rows){
+    userIds.push(i.id)
+    userEmails.push(i.email)
+  }
+
+  await fixTransactions(userIds) 
+  await sendEmails(userEmails)
 }
 
 
-userIds = connect(client, string)
-
-
-main()
-
-  .then(() => console.log('Transações reprocessadas!'))
-
-  .catch(err => console.error(err))
-
+client.connect()
+.then(() => client.query(string))
+.then(results => main(results.rows))
+.then(() => console.log('Transações reprocessadas!'))
+.then(() => client.end())
+.catch(err => console.error(err))
